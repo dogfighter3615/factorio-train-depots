@@ -141,7 +141,7 @@ local function remove_stop_from_schedule(schedule, place)
     if schedule.current > #schedule.records then
         local i = 1
         for _,station in pairs(schedule.records) do
-            active = trainstop_table[station.station]
+            active = global.trainstop_table[station.station]
             if active == true then
                 schedule.current = i
                 return schedule
@@ -170,12 +170,16 @@ end
 
 --start the clock to check the trains
 script.on_nth_tick(tonumber(settings.global["time_between_checks"].value), function (event)
-    for id,train in pairs(depot_list)do
-        if depot_list[id] ~= nil then
+
+    if global.depot_list == nil then
+        global.depot_list = {}
+    end
+    for id,train in pairs(global.depot_list)do
+        if global.depot_list[id] ~= nil then
             local activelist = 0
             for _,v in pairs(train.schedule.records) do
                 if v.station ~= settings.global["depot_names"].value then
-                    if trainstop_table[v.station] then
+                    if global.trainstop_table[v.station] then
                         activelist = activelist + 1
                     end
                 end
@@ -185,7 +189,7 @@ script.on_nth_tick(tonumber(settings.global["time_between_checks"].value), funct
                 replace_train_schedule(
                     get_train_by_id(id).train,
                     schedule)
-                depot_list[id] = nil
+                global.depot_list[id] = nil
             end
         end
     end
@@ -195,16 +199,16 @@ end)
 ---create a list of all stops that are on the map, only stores name and active state
 ---stores the list as a table that is globally accessible and returns it
 function create_stop_list()
-    trainstop_table = {}
+    global.trainstop_table = {}
     local stops = game.get_train_stops()
     for _,v in pairs(stops) do
         local controlbehavior = v.get_control_behavior()
         if controlbehavior then
-            if not trainstop_table[v.backer_name] then
-                trainstop_table[v.backer_name] = not controlbehavior.disabled
+            if not global.trainstop_table[v.backer_name] then
+                global.trainstop_table[v.backer_name] = not controlbehavior.disabled
             end
         else
-            trainstop_table[v.backer_name] = true
+            global.trainstop_table[v.backer_name] = true
         end
     end
     return table
@@ -212,12 +216,12 @@ end
 
 ---creates a train list, should only be used once per initiation. the list should be updated based on events instead
 function create_train_list()
-    train_list = {}
-    depot_list = {}
+    global.train_list = {}
+    global.depot_list = {}
     for _,sur in pairs(game.surfaces) do
         locomotives = sur.find_entities_filtered{type="locomotive"}
         for _,v in pairs(locomotives) do
-            train_list[v.backer_name] = v.train.schedule
+            global.train_list[v.backer_name] = v.train.schedule
         end
     end
 end
@@ -233,13 +237,13 @@ end
 ---updates the train list for when a train enters a station
 ---@param event EventData.on_train_changed_state
 function train_enters_station(event)
-    station_list[event.train.id] = event.train
+    global.station_list[event.train.id] = event.train
     if not event.train.manual_mode then
         if event.train.station ~= nil then
             if event.train.station.backer_name ~= settings.global["depot_names"].value then
                 local active_stops = 0
                 for _,v in pairs(event.train.schedule.records) do
-                    if trainstop_table[v.station] then
+                    if global.trainstop_table[v.station] then
                         active_stops = active_stops + 1
                     end
                 end
@@ -247,10 +251,10 @@ function train_enters_station(event)
                     send_train_to_depot(event.train)
                 end
             else if event.train.station.backer_name == settings.global["depot_names"].value then
-                depot_list[event.train.id] = event.train
-                for k,v in pairs(depot_list) do
+                global.depot_list[event.train.id] = event.train
+                for k,v in pairs(global.depot_list) do
                     if not v.valid == nil then
-                        depot_list[k] = nil
+                        global.depot_list[k] = nil
                     end
                 end
             end
@@ -261,10 +265,10 @@ end
 
 
 function check_station_trains()
-    for _,train in pairs(station_list) do
+    for _,train in pairs(global.station_list) do
         local active_stops = 0
         for _,v in pairs(train.schedule.records) do
-            if trainstop_table[v.station] then
+            if global.trainstop_table[v.station] then
                 active_stops = active_stops + 1
             end
         end
@@ -293,6 +297,9 @@ end)
 
 script.on_event(defines.events.on_train_changed_state, function (event)
     --game.print(event.name.."name----"..event.old_state.."old state-----"..event.train.state.."new state")
+    if global.station_list == nil then
+        global.station_list = {}
+    end
     if event.old_state==6 then
         train_enters_station(event)
         if print_trains_entering_station then
@@ -300,29 +307,28 @@ script.on_event(defines.events.on_train_changed_state, function (event)
         end
     end
     if event.old_state == 7 then
-        station_list[event.train.id] = nil
+        global.station_list[event.train.id] = nil
     end
 end)
 
 
 local function onLoad(event)
-    depot_list = {}
-    station_list = {}
+    global.depot_list = {}
+    global.station_list = {}
     print_trains_entering_station = false
-    script.on_event(defines.events.on_tick, function(event)
+    register_commands()
+    if game then
         
-        if game then
-            
-            game.print("Saved game loaded.")
-            create_stop_list()
-            
-            script.on_event(defines.events.on_tick, nil)
-        end
-    end)
+        game.print("Saved game loaded.")
+        create_stop_list()
+        
+        
+    end
+    
 end
 
 
-script.on_load(onLoad)
+script.on_init(onLoad)
 
 
 
@@ -333,9 +339,9 @@ script.on_load(onLoad)
 ---@param command CustomCommandData
 function print_trainlist(command) 
     if command.player_index ~= nil and command.parameter ~= nil then
-        game.get_player(command.player_index).print(tableToString(train_list[command.parameter]))
+        game.get_player(command.player_index).print(tableToString(global.train_list[command.parameter]))
     else if command.player_index ~= nil then
-        game.get_player(command.player_index).print(tableToString(train_list))
+        game.get_player(command.player_index).print(tableToString(global.train_list))
     end
 end
 end
@@ -344,9 +350,9 @@ end
 ---@param command CustomCommandData
 function print_stationlist(command)
     if command.player_index ~= nil and command.parameter ~= nil then
-        game.get_player(command.player_index).print(tableToString(station_list[command.parameter]))
+        game.get_player(command.player_index).print(tableToString(global.station_list[command.parameter]))
     else if command.player_index ~= nil then
-        game.get_player(command.player_index).print(tableToString(station_list))
+        game.get_player(command.player_index).print(tableToString(global.station_list))
     end
 end
 end
@@ -355,9 +361,9 @@ end
 ---@param command CustomCommandData
 function print_trainstop_table(command)
     if command.player_index ~= nil and command.parameter ~= nil then
-        game.get_player(command.player_index).print(tableToString(trainstop_table[command.parameter]))
+        game.get_player(command.player_index).print(tableToString(global.trainstop_table[command.parameter]))
     else if command.player_index ~= nil then
-        game.get_player(command.player_index).print(tableToString(trainstop_table))
+        game.get_player(command.player_index).print(tableToString(global.trainstop_table))
     end
 end
 end
