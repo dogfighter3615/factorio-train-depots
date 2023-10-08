@@ -1,0 +1,9 @@
+{
+    "name": "train-depots",
+    "version": "0.1.4",
+    "title": "train depots",
+    "author": "dogfighter205",
+    "factorio_version": "1.1",
+    "dependencies": ["base >= 1.1"],
+    "description": "Makes trains go to a depot station if they dont have any other station to go to"
+  }
