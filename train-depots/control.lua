@@ -295,6 +295,9 @@ script.on_event(defines.events.on_train_changed_state, function (event)
     --game.print(event.name.."name----"..event.old_state.."old state-----"..event.train.state.."new state")
     if event.old_state==6 then
         train_enters_station(event)
+        if print_trains_entering_station then
+            game.print("train entered"..event.train.station.backer_name)
+        end
     end
     if event.old_state == 7 then
         station_list[event.train.id] = nil
@@ -305,6 +308,7 @@ end)
 local function onLoad(event)
     depot_list = {}
     station_list = {}
+    print_trains_entering_station = false
     script.on_event(defines.events.on_tick, function(event)
         
         if game then
@@ -319,3 +323,60 @@ end
 
 
 script.on_load(onLoad)
+
+
+
+
+--------------------------------------------------------debug section---------------------------
+
+---prints out the trainlist table
+---@param command CustomCommandData
+function print_trainlist(command) 
+    if command.player_index ~= nil and command.parameter ~= nil then
+        game.get_player(command.player_index).print(tableToString(train_list[command.parameter]))
+    else if command.player_index ~= nil then
+        game.get_player(command.player_index).print(tableToString(train_list))
+    end
+end
+end
+
+---prints out the stationlist table
+---@param command CustomCommandData
+function print_stationlist(command)
+    if command.player_index ~= nil and command.parameter ~= nil then
+        game.get_player(command.player_index).print(tableToString(station_list[command.parameter]))
+    else if command.player_index ~= nil then
+        game.get_player(command.player_index).print(tableToString(station_list))
+    end
+end
+end
+
+---prints out the active stations
+---@param command CustomCommandData
+function print_trainstop_table(command)
+    if command.player_index ~= nil and command.parameter ~= nil then
+        game.get_player(command.player_index).print(tableToString(trainstop_table[command.parameter]))
+    else if command.player_index ~= nil then
+        game.get_player(command.player_index).print(tableToString(trainstop_table))
+    end
+end
+end
+
+function turn_on_train_debugging(command)
+    if command.player_index ~= nil then
+        game.get_player(command.player_index).print("prepare for the lag")
+    end
+    print_trains_entering_station = true
+end
+
+function register_commands()
+    commands.add_command("print_trainlist",
+    "prints out the trainlist table",print_trainlist)
+    commands.add_command("print_stationlist",
+    "prints out the stationlist table",print_stationlist)
+    commands.add_command("print_trainstop_table", 
+    "prints out the table of active trainstops",print_trainstop_table)
+    commands.add_command("turn_on_train_debugging",
+    "turns on the train debugging tool that prints out when a train visits a station, only to be used when needed",
+    turn_on_train_debugging)
+end
