@@ -168,9 +168,8 @@ function get_train_by_id(id)
     return nil
 end
 
---start the clock to check the trains
-script.on_nth_tick(tonumber(settings.global["time_between_checks"].value), function (event)
-
+function check_trains (event)
+    
     if global.depot_list == nil then
         global.depot_list = {}
     end
@@ -193,7 +192,8 @@ script.on_nth_tick(tonumber(settings.global["time_between_checks"].value), funct
             end
         end
     end
-end)
+end
+
 
 
 ---create a list of all stops that are on the map, only stores name and active state
@@ -229,9 +229,12 @@ end
 ---add the depot to the train schedule at the correct spot
 ---@param train LuaTrain
 function send_train_to_depot(train)
-    local current = train.schedule.current
-    schedule = add_stop_in_schedule(train.schedule,create_schedule_table(current),current)
-    replace_train_schedule(train,schedule)
+    if global.depot_list[train.id] == nil then
+        local current = train.schedule.current
+        schedule = add_stop_in_schedule(train.schedule,create_schedule_table(current),current)
+        replace_train_schedule(train,schedule)
+        global.depot_list[train.id] = train
+    end
 end
 
 ---updates the train list for when a train enters a station
@@ -251,7 +254,7 @@ function train_enters_station(event)
                     send_train_to_depot(event.train)
                 end
             else if event.train.station.backer_name == settings.global["depot_names"].value then
-                global.depot_list[event.train.id] = event.train
+                --global.depot_list[event.train.id] = event.train
                 for k,v in pairs(global.depot_list) do
                     if not v.valid == nil then
                         global.depot_list[k] = nil
@@ -286,6 +289,40 @@ function check_station_trains()
     end
 end
 
+
+
+
+local function OnInit(event)
+    global.depot_list = {}
+    global.station_list = {}
+    print_trains_entering_station = false
+    register_commands()
+    if game then
+        
+        game.print("mod initialised")
+        create_stop_list()
+        
+        
+    end
+    
+end
+
+function OnLoad()
+    if game then
+        script.on_event(defines.events.on_tick,function ()
+            register_commands()
+            script.on_event(defines.events.on_tick,nil)
+        end)
+    end
+end
+
+
+--------------------------------------event handlers-----------------------------------------
+
+script.on_init(OnInit)
+script.on_load(OnLoad)
+
+
 script.on_nth_tick(360,function (event)
     check_station_trains()
 end)
@@ -293,6 +330,11 @@ end)
 
 script.on_nth_tick(60, function (event)
     create_stop_list()
+end)
+
+--start the clock to check the trains
+script.on_nth_tick(tonumber(settings.global["time_between_checks"].value), function (event)
+    check_trains(event)
 end)
 
 script.on_event(defines.events.on_train_changed_state, function (event)
@@ -310,29 +352,6 @@ script.on_event(defines.events.on_train_changed_state, function (event)
         global.station_list[event.train.id] = nil
     end
 end)
-
-
-local function onLoad(event)
-    global.depot_list = {}
-    global.station_list = {}
-    print_trains_entering_station = false
-    register_commands()
-    if game then
-        
-        game.print("Saved game loaded.")
-        create_stop_list()
-        
-        
-    end
-    
-end
-
-
-script.on_init(onLoad)
-
-
-
-
 --------------------------------------------------------debug section---------------------------
 
 ---prints out the trainlist table
