@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file.
 - Added the changelog file
  
 ### Changed
- 
+
 ### Fixed
 - Fixed a rare bug where the train_depots table wasn't yet initialized which would crash the game if it occured.
+- Fixed a typo in the settings file

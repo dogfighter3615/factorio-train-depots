@@ -14,6 +14,6 @@ data:extend({
         default_value = 20,
         minimum_value = 10,
         localised_name = "time between checks",
-        localised_description = "the time thats between checks for which trains can depart from a depot in ticks. can be extended if the mod causes the server to lag."
+        localised_description = "the time that's between checks for which trains can depart from a depot in ticks. can be extended if the mod causes the server to lag."
     }
 })
