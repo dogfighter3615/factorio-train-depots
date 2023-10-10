@@ -1,5 +1,22 @@
 --control.lua
 
+--test if the mod is alive
+script.on_event(defines.events.on_console_chat, function (event)
+    if event.message=="hello mod" then
+        game.print("hello "..game.get_player(event.player_index).name)
+        local screen_element = game.players[event.player_index].gui.screen
+        register_commands()
+        close_depot_gui(game.players[event.player_index])
+    end
+    for key,ent in pairs(game.surfaces[1].find_entities_filtered{type='locomotive'}) do
+        mesg = tableToString(ent.train.schedule)
+        -- __DebugAdapter.print(mesg)
+        --mesg2=tableToString(create_schedule_table(1))
+        --__DebugAdapter.print("____________")
+        --__DebugAdapter.print(mesg2)
+    end
+end)
+
 
 ---convert a table into a string
 ---@param tbl table
@@ -76,19 +93,6 @@ local function create_schedule_table (current)
     return table
 end
 
---test if the mod is alive
-script.on_event(defines.events.on_console_chat, function (event)
-    if event.message=="hello mod" then
-        game.print("hello "..game.get_player(event.player_index).name)
-    end
-    for key,ent in pairs(game.surfaces[1].find_entities_filtered{type='locomotive'}) do
-        mesg = tableToString(ent.train.schedule)
-        -- __DebugAdapter.print(mesg)
-        mesg2=tableToString(create_schedule_table(1))
-        --__DebugAdapter.print("____________")
-        --__DebugAdapter.print(mesg2)
-    end
-end)
 
 
 ---create an array with the keys of the given table in reverse order
@@ -268,6 +272,9 @@ end
 
 
 function check_station_trains()
+    if global.station_list == nil then
+        global.station_list = {}
+    end
     for _,train in pairs(global.station_list) do
         local active_stops = 0
         for _,v in pairs(train.schedule.records) do
@@ -316,6 +323,28 @@ function OnLoad()
     end
 end
 
+-------------------------------------------gui-----------------------------------------------
+
+---open the depot gui to choose a depot station to go to
+---@param player LuaPlayer
+function open_depot_gui(player)
+    local screen_element = player.gui.screen
+    train_depot_gui = screen_element.add{type = 'frame', name = 'train_depot_settings_frame', caption = 'train depot settings'}
+    train_depot_gui.style.size = {250,450}
+    --train_depot_gui.location = {x=507,y=1630}
+end
+
+---close the depot gui
+---@param player LuaPlayer
+function close_depot_gui(player)
+    if player == nil then return end
+    local screen_element = player.gui.screen
+    for _,v in pairs(screen_element.children) do
+        if v.name == "train_depot_settings_frame"then
+            v.destroy()
+        end        
+    end
+end
 
 --------------------------------------event handlers-----------------------------------------
 
@@ -337,8 +366,26 @@ script.on_nth_tick(tonumber(settings.global["time_between_checks"].value), funct
     check_trains(event)
 end)
 
+--open the depot gui when you look at a train
+script.on_event(defines.events.on_gui_opened, function (event)
+    if event.entity == nil then return end
+    if event.entity.type == 'locomotive' then
+        local player = game.players[event.player_index]
+        open_depot_gui(player)
+    end
+end)
+
+--close the depot gui when the train gui is closed
+script.on_event(defines.events.on_gui_closed,function (event)
+    if event.entity == nil then return end
+    if event.entity.type == 'locomotive' then
+        local player = game.players[event.player_index]
+        close_depot_gui(player)
+
+    end
+end)
+
 script.on_event(defines.events.on_train_changed_state, function (event)
-    --game.print(event.name.."name----"..event.old_state.."old state-----"..event.train.state.."new state")
     if global.station_list == nil then
         global.station_list = {}
     end
