@@ -1,5 +1,12 @@
 --control.lua
 
+--test if the mod is alive
+script.on_event(defines.events.on_console_chat, function (event)
+    if event.message=="hello mod" then
+        game.print("hello "..game.get_player(event.player_index).name)
+    end
+end)
+
 
 ---convert a table into a string
 ---@param tbl table
@@ -43,11 +50,12 @@ end
 ---create a schedule for the specified depot name
 ---currently just takes value from settings, will break if theres more than one value in there! 
 ---@param current int
-local function create_schedule_table (current)
+---@param trainid int
+local function create_schedule_table (current, trainid)
     local table = {}
     table = {
         [current+1]={
-            station = settings.global["depot_names"].value,
+            station = global.train_table[trainid].selected_depot,
             wait_conditions = {
             [1]={
                     compare_type = "or",
@@ -76,19 +84,6 @@ local function create_schedule_table (current)
     return table
 end
 
---test if the mod is alive
-script.on_event(defines.events.on_console_chat, function (event)
-    if event.message=="hello mod" then
-        game.print("hello "..game.get_player(event.player_index).name)
-    end
-    for key,ent in pairs(game.surfaces[1].find_entities_filtered{type='locomotive'}) do
-        mesg = tableToString(ent.train.schedule)
-        -- __DebugAdapter.print(mesg)
-        mesg2=tableToString(create_schedule_table(1))
-        --__DebugAdapter.print("____________")
-        --__DebugAdapter.print(mesg2)
-    end
-end)
 
 
 ---create an array with the keys of the given table in reverse order
@@ -110,7 +105,9 @@ end
 ---@param train LuaTrain
 ---@param schedule table
 function replace_train_schedule(train, schedule)
+    if schedule == nil then return end
     train.schedule = schedule
+    global.train_table[train.id].train = train
 end
 
 ---comment
@@ -132,7 +129,13 @@ end
 ---remove the stop at the given place from the schedule
 ---@param schedule table
 ---@param place int
-local function remove_stop_from_schedule(schedule, place)
+---@param stopname string
+---@return table
+local function remove_stop_from_schedule(schedule, place, stopname)
+    if stopname ~= schedule.records[place].station then 
+        game.print("trying to delete the wrong station, tried to delete "..schedule.record[place]) 
+        return schedule 
+    end
     for key, v in pairs(schedule.records) do
         if (key >= place) then
             schedule.records[key] = schedule.records[key+1]
@@ -168,27 +171,31 @@ function get_train_by_id(id)
     return nil
 end
 
-function check_trains (event)
-    
+---checks stationed trains if they have to go to a depot or leave from there
+function check_trains ()
     if global.depot_list == nil then
         global.depot_list = {}
     end
-    for id,train in pairs(global.depot_list)do
-        if global.depot_list[id] ~= nil then
-            local activelist = 0
-            for _,v in pairs(train.schedule.records) do
-                if v.station ~= settings.global["depot_names"].value then
-                    if global.trainstop_table[v.station] then
-                        activelist = activelist + 1
+    for id,v in pairs(global.train_table)do
+        if v.train.valid ~= false then
+            if global.train_table[id].go_to_depot then
+                local activelist = 0
+                if v.train.schedule == nil then return end
+                for _,v in pairs(v.train.schedule.records) do
+                    if v.station ~= global.train_table[id].selected_depot then
+                        if global.trainstop_table[v.station] then
+                            activelist = activelist + 1
+                        end
                     end
                 end
-            end
-            if (activelist > 1) then
-                local schedule = remove_stop_from_schedule(train.schedule,train.schedule.current)
-                replace_train_schedule(
-                    get_train_by_id(id).train,
-                    schedule)
-                global.depot_list[id] = nil
+                if (activelist > 1) then
+                    local schedule = remove_stop_from_schedule(v.train.schedule,v.train.schedule.current,global.train_table[id].selected_depot)
+                    replace_train_schedule(
+                        get_train_by_id(id).train,
+                        schedule)
+                    global.train_table[id].go_to_depot = false
+                    global.train_table[id].at_depot = false
+                end
             end
         end
     end
@@ -229,23 +236,29 @@ end
 ---add the depot to the train schedule at the correct spot
 ---@param train LuaTrain
 function send_train_to_depot(train)
-    if global.depot_list[train.id] == nil then
+    if global.train_table[train.id].go_to_depot == false then
         local current = train.schedule.current
-        schedule = add_stop_in_schedule(train.schedule,create_schedule_table(current),current)
+        schedule = add_stop_in_schedule(train.schedule,create_schedule_table(current,train.id),current)
         replace_train_schedule(train,schedule)
-        global.depot_list[train.id] = train
+        global.train_table[train.id].go_to_depot = true
     end
 end
 
 ---updates the train list for when a train enters a station
 ---@param event EventData.on_train_changed_state
 function train_enters_station(event)
-    global.station_list[event.train.id] = event.train
+    if global.train_table[event.train.id] == nil then
+        create_train_table_element(event.train)
+    end
+    global.train_table[event.train.id].at_station = true
     if not event.train.manual_mode then
         if event.train.station ~= nil then
-            if event.train.station.backer_name ~= settings.global["depot_names"].value then
+            if event.train.station.backer_name ~= global.train_table.selected_depot then
                 local active_stops = 0
                 for _,v in pairs(event.train.schedule.records) do
+                    if global.trainstop_table == nil then
+                        global.trainstop_table = {}
+                    end
                     if global.trainstop_table[v.station] then
                         active_stops = active_stops + 1
                     end
@@ -253,8 +266,8 @@ function train_enters_station(event)
                 if active_stops < 2 then
                     send_train_to_depot(event.train)
                 end
-            else if event.train.station.backer_name == settings.global["depot_names"].value then
-                --global.depot_list[event.train.id] = event.train
+            else if event.train.station.backer_name == global.train_table.selected_depot then
+                global.train_table[event.train.id].at_depot = true
                 for k,v in pairs(global.depot_list) do
                     if not v.valid == nil then
                         global.depot_list[k] = nil
@@ -268,77 +281,307 @@ end
 
 
 function check_station_trains()
-    for _,train in pairs(global.station_list) do
-        local active_stops = 0
-        for _,v in pairs(train.schedule.records) do
-            if global.trainstop_table[v.station] then
-                active_stops = active_stops + 1
-            end
-        end
-        if active_stops < 2 then
-            local depot_stops = 0
-            for _,v in pairs(train.schedule.records) do
-                if v.station == settings.global["depot_names"].value then
-                    depot_stops = depot_stops+1
+    for key,v in pairs(global.train_table) do
+        if v.at_station and v.train.valid ~= false then
+            if v.train.schedule ~= nil then
+                local active_stops = 0
+                for _,k in pairs(v.train.schedule.records) do
+                    if global.trainstop_table[k.station] then
+                        active_stops = active_stops + 1
+                    end
                 end
+                if active_stops < 2 then
+                    local depot_stops = 0
+                    for _,k in pairs(v.train.schedule.records) do
+                        if k.station == v.selected_depot then
+                            depot_stops = depot_stops+1
+                        end
+                    end
+                    if depot_stops == 0 then
+                        send_train_to_depot(v.train)
+                    end
+                end
+            else if v.train.valid == false then
+                global.train_table[key] = nil
             end
-            if depot_stops == 0 then
-                send_train_to_depot(train)
             end
         end
     end
 end
 
+---creates the array of possible depot station names
+function create_depot_array(setting)
+    global.depot_array = {}
+    local depot_name = ""
+    for i = 1 , #setting, 1 do
+        local sub = string.sub(setting, i, i)
+        if sub ~= "," then
+            depot_name = depot_name .. sub
+        else 
+            global.depot_array[#global.depot_array+1] = depot_name
+            depot_name = ""
+        end
+    end
+    global.depot_array[#global.depot_array+1] = depot_name
+    return global.depot_array
+end
 
-
-
-local function OnInit(event)
+local function OnInit()
+    register_commands()
     global.depot_list = {}
     global.station_list = {}
+    global.train_table = {}
+    create_stop_list()
+    create_depot_array(settings.global["depot_names"].value)
+    create_train_table()
     print_trains_entering_station = false
-    register_commands()
     if game then
-        
-        game.print("mod initialised")
-        create_stop_list()
-        
-        
+        ---- initial code
     end
     
 end
 
-function OnLoad()
-    if game then
-        script.on_event(defines.events.on_tick,function ()
-            register_commands()
-            script.on_event(defines.events.on_tick,nil)
-        end)
+function on_tick(event)
+    if PostLoad then
+        PostLoad = false
+        game.print("loaded")
+        
+        if global.depot_array == nil then
+            create_depot_array(settings.global["depot_names"].value)
+        end
+        if global.train_table == nil then 
+            create_train_table()
+        end
+        if global.trainstop_table == nil then 
+            create_stop_list()
+        end
     end
 end
 
+---do whatever needs to be done when loading a save
+-- remember you dont have global table or game class idiot
+function OnLoad()
+    --PostLoad = true
+    register_commands()
+end
+
+---update the train_table.train variable if something changed
+---@param train LuaTrain
+function update_train_table_train(train)
+    if global.train_table[train.id]==nil then
+        create_train_table_element(train)
+    end
+    global.train_table[train.id].train = train
+end
+
+----------------------------------------train table-------------------------------------------
+
+---should only be called when the mod initializes or when called by a command, creates a large lag spike as it has to iterate over every train
+function create_train_table()
+    global.train_table = {}
+    for _,sur in pairs(game.surfaces) do
+        for _,ent in pairs(sur.find_entities_filtered{type='locomotive'}) do
+            create_train_table_element(ent.train)
+        end
+    end
+end
+
+---create and add an element for/to the train table 
+---@param train LuaTrain
+function create_train_table_element (train)
+    --game.print("train added")
+    global.train_table[train.id] = {
+        train = train,
+        selected_depot = global.depot_array[1],
+        go_to_depot = false,
+        enable_depot = true,
+        at_depot = false,
+        at_station = false
+    }
+end
+
+---function for the remake command
+---@param event CustomCommandData
+function remake_train_table(event)
+    create_train_table()
+    game.players[event.player_index].print("remade train table")
+end
+-------------------------------------------gui-----------------------------------------------
+
+---open the depot gui to choose a depot station to go to
+---@param player LuaPlayer
+function open_depot_gui(player)
+    ----------------------main frame
+    local screen_element = player.gui.screen
+    local train_depot_gui = screen_element.add{type = 'frame', name = 'train_depot_settings_frame', caption = 'train depot settings'}
+    train_depot_gui.style.size = {250,450}
+    --train_depot_gui.location = {x=507,y=1630}
+
+    ----------------------dropdown box for selecting station
+    local depot_selector_drop_down = train_depot_gui.add{type = 'drop-down', 
+                                                        name = 'depot_selector_drop_down',
+                                                        caption='select the depot station to go to'}
+    depot_selector_drop_down.items = global.depot_array
+    depot_selector_drop_down.selected_index = 1
+
+    ----------------------checkbox to opt in or out of depots
+
+    --local depot_checkbox = train_depot_gui.add{type = "checkbox",name = "depot_checkbox",caption = "select if trains should go to a depot"}
+    --depot_checkbox.state = true
+
+end
+
+---close the depot gui
+---@param player LuaPlayer
+function close_depot_gui(player)
+    if player == nil then return end
+    local screen_element = player.gui.screen
+    for _,v in pairs(screen_element.children) do
+        if v.name == "train_depot_settings_frame"then
+            v.destroy()
+        end        
+    end
+end
 
 --------------------------------------event handlers-----------------------------------------
 
 script.on_init(OnInit)
+
 script.on_load(OnLoad)
 
-
 script.on_nth_tick(360,function (event)
+    if global.train_table == nil then
+        global.train_table = {}
+    end
+    if global.depot_array == nil then
+        global.depot_array = {}
+    end
     check_station_trains()
 end)
 
-
 script.on_nth_tick(60, function (event)
+    if global.train_table == nil then
+        global.train_table = {}
+    end
+    if global.depot_array == nil then
+        global.depot_array = {}
+    end
     create_stop_list()
 end)
 
 --start the clock to check the trains
 script.on_nth_tick(tonumber(settings.global["time_between_checks"].value), function (event)
-    check_trains(event)
+    if global.train_table == nil then
+        global.train_table = {}
+    end
+    if global.depot_array == nil then
+        global.depot_array = {}
+    end
+    check_trains()
+    for id,v in pairs(global.train_table) do
+        if v.train.valid == false then 
+            global.train_table[id]=nil
+        end
+    end 
 end)
 
+script.on_nth_tick(1,function (event)
+    if global.train_table == nil then
+        global.train_table = {}
+    end
+    if global.depot_array == nil then
+        global.depot_array = {}
+    end
+    on_tick(event)
+end)
+
+script.on_event(defines.events.on_runtime_mod_setting_changed,function (event)
+    global.depot_array = create_depot_array(settings.global["depot_names"].value)
+end)
+
+script.on_event(defines.events.on_built_entity, function (event)
+    if event.created_entity.type == 'locomotive' then 
+        create_train_table_element(event.created_entity.train)
+    end
+end)
+
+script.on_event(defines.events.on_robot_built_entity,function (event)
+    if event.created_entity.type == 'locomotive' then 
+        create_train_table_element(event.created_entity.train)
+    end
+end)
+
+script.on_event(defines.events.on_entity_died, function (event)
+    if event.entity.type == 'locomotive' then
+        --game.print("removed train from table")
+        global.train_table[event.entity.train.id] = nil
+    end
+end)
+
+script.on_event(defines.events.on_player_mined_entity,function (event)
+    if event.entity.type == 'locomotive'then
+        --game.print("removed train from table")
+        global.train_table[event.entity.train.id] = nil
+    end
+end)
+
+script.on_event(defines.events.on_robot_mined_entity,function (event)
+    if event.entity.type == 'locomotive'then
+        --game.print("removed train from table")
+        global.train_table[event.entity.train.id] = nil
+    end
+end)
+
+script.on_event(defines.events.on_train_schedule_changed, function (event)
+    if event.player_index ~= nil or event.mod_name ~= "train-depots" then
+        if global.train_table[event.train.id].go_to_depot then
+            if event.train.schedule ~= nil then 
+                local hasdepot
+                for _,v in pairs(event.train.schedule.records) do
+                    if v.station == global.train_table[event.train.id].selected_depot then
+                        hasdepot = true 
+                    end
+                end
+                if not hasdepot then 
+                    global.train_table[event.train.id].go_to_depot = false
+                end
+            end
+        end
+    end
+    update_train_table_train(event.train)
+end)
+
+--[[
+--open the depot gui when you look at a train
+script.on_event(defines.events.on_gui_opened, function (event)
+    if event.entity == nil then return end
+    if event.entity.type == 'locomotive' then
+        local player = game.players[event.player_index]
+--        open_depot_gui(player)
+    end
+end)
+
+--close the depot gui when the train gui is closed
+script.on_event(defines.events.on_gui_closed,function (event)
+    if event.entity == nil then return end
+    if event.entity.type == 'locomotive' then
+        local player = game.players[event.player_index]
+        local screen_element = player.gui.screen
+        for _,v in pairs(screen_element.children) do
+            if v.name == "train_depot_settings_frame"then
+                for _,k in pairs(v.children) do
+                    if k.name == "depot_selector_drop_down" then
+                        global.train_table[event.entity.train.id].selected_depot = k.items[k.selected_index]
+                    end 
+                end
+            end
+        end
+        close_depot_gui(player)
+
+    end
+end)
+--]]
 script.on_event(defines.events.on_train_changed_state, function (event)
-    --game.print(event.name.."name----"..event.old_state.."old state-----"..event.train.state.."new state")
     if global.station_list == nil then
         global.station_list = {}
     end
@@ -350,30 +593,32 @@ script.on_event(defines.events.on_train_changed_state, function (event)
     end
     if event.old_state == 7 then
         global.station_list[event.train.id] = nil
+        update_train_table_train(event.train)
     end
 end)
---------------------------------------------------------debug section---------------------------
+--------------------------------------------------------commands--------------------------------------
 
 ---prints out the trainlist table
 ---@param command CustomCommandData
 function print_trainlist(command) 
     if command.player_index ~= nil and command.parameter ~= nil then
-        game.get_player(command.player_index).print(tableToString(global.train_list[command.parameter]))
+        game.get_player(command.player_index).print(tableToString(global.train_table[command.parameter]))
     else if command.player_index ~= nil then
-        game.get_player(command.player_index).print(tableToString(global.train_list))
+        game.get_player(command.player_index).print("please specify a train id")
     end
 end
 end
 
----prints out the stationlist table
----@param command CustomCommandData
-function print_stationlist(command)
-    if command.player_index ~= nil and command.parameter ~= nil then
-        game.get_player(command.player_index).print(tableToString(global.station_list[command.parameter]))
-    else if command.player_index ~= nil then
-        game.get_player(command.player_index).print(tableToString(global.station_list))
+function delete_depots_from_schedule (command) 
+    for trainid,v in pairs(global.train_table) do
+        for key,k in pairs(v.train.schedule.records) do
+            if k.station == v.selected_depot then
+                schedule = remove_stop_from_schedule(v.train.schedule,key,global.train_table[trainid].selected_depot)
+                replace_train_schedule(get_train_by_id(trainid).train,schedule)
+                v.go_to_depot = false
+            end
+        end
     end
-end
 end
 
 ---prints out the active stations
@@ -394,14 +639,17 @@ function turn_on_train_debugging(command)
     print_trains_entering_station = true
 end
 
+--registers the commands, has to be called every time the game loads
 function register_commands()
     commands.add_command("print_trainlist",
     "prints out the trainlist table",print_trainlist)
-    commands.add_command("print_stationlist",
-    "prints out the stationlist table",print_stationlist)
     commands.add_command("print_trainstop_table", 
     "prints out the table of active trainstops",print_trainstop_table)
     commands.add_command("turn_on_train_debugging",
     "turns on the train debugging tool that prints out when a train visits a station, only to be used when needed",
     turn_on_train_debugging)
+    commands.add_command("remake_train_table","creates a new train table, will cause a lag spike, only call when needed",
+    remake_train_table)
+    commands.add_command("remove_depots_from_trains","removes all depot stops from train schedules if needed",
+    delete_depots_from_schedule)
 end
