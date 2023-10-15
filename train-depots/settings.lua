@@ -5,7 +5,7 @@ data:extend({
         setting_type = "runtime-global",
         default_value = "Depot",
         localised_name = "Depot Names",
-        localised_description = "The names of the stations trains should go to, divided by ','. NOTE: currently only one name is allowed and the mod will break if you add more."
+        localised_description = "The names of the stations trains should go to, divided by ','. NOTE: Currently there is no way to select between the different stations, adding more will not break the mod but it will always choose the first option in the list"
     },
     {
         type = "int-setting",

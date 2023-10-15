@@ -38,3 +38,16 @@ All notable changes to this project will be documented in this file.
 - added a few checks to stop the mod deleting the wrong stations
 
 ### Fixed
+- the mod didnt work when used for the first time
+- the mod didnt update properly
+
+## [0.1.11] - 11-10-23
+
+### Added
+
+### Changed
+- Changed the settings tooltips to show that adding multiple station names won't break the mod anymore
+
+### Fixed
+- Added some checks to make sure the table didnt get confused when a player manually removes the depot station
+- Removed some points where the mod tried to read the depot directly from the settings instead of the table
