@@ -41,7 +41,7 @@ All notable changes to this project will be documented in this file.
 - the mod didnt work when used for the first time
 - the mod didnt update properly
 
-## [0.1.11] - 11-10-23
+## [0.1.11] - 15-10-23
 
 ### Added
 
@@ -51,3 +51,12 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 - Added some checks to make sure the table didnt get confused when a player manually removes the depot station
 - Removed some points where the mod tried to read the depot directly from the settings instead of the table
+
+## [0.1.12] - 17-10-23
+
+### Added
+
+### Changed
+
+### Fixed
+- A bug which would crash the server if you changed the schedule of a train manually, line 563 - 566
