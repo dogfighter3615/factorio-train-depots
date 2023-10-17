@@ -4,6 +4,8 @@
 script.on_event(defines.events.on_console_chat, function (event)
     if event.message=="hello mod" then
         game.print("hello "..game.get_player(event.player_index).name)
+        local player = game.players[event.player_index]
+        local player = game.players[event.player_index]
     end
 end)
 
@@ -133,7 +135,7 @@ end
 ---@return table
 local function remove_stop_from_schedule(schedule, place, stopname)
     if stopname ~= schedule.records[place].station then 
-        game.print("trying to delete the wrong station, tried to delete "..schedule.record[place]) 
+        --game.print("trying to delete the wrong station, tried to delete "..schedule.record[place]) 
         return schedule 
     end
     for key, v in pairs(schedule.records) do
@@ -177,7 +179,7 @@ function check_trains ()
         global.depot_list = {}
     end
     for id,v in pairs(global.train_table)do
-        if v.train.valid ~= false then
+        if v.train.valid ~= false and v.train.schedule ~= nil then
             if global.train_table[id].go_to_depot then
                 local activelist = 0
                 if v.train.schedule == nil then return end
@@ -374,6 +376,25 @@ function update_train_table_train(train)
     global.train_table[train.id].train = train
 end
 
+---
+---@param event EventData.on_gui_checked_state_changed
+function oncheckboxchanged(event)
+    if event.element.name == "depot_checkbox" then
+        local trainid
+        local player = game.get_player(event.player_index)
+        if player ~= nil then
+            if player.opened ~= nil then
+                local trainid = player.opened.train.id
+                if event.element.state then
+                    global.train_table[trainid].go_to_depot = true
+                else
+                    global.train_table[trainid].go_to_depot = false
+                end
+            end
+        end
+    end
+end
+
 ----------------------------------------train table-------------------------------------------
 
 ---should only be called when the mod initializes or when called by a command, creates a large lag spike as it has to iterate over every train
@@ -415,7 +436,7 @@ function open_depot_gui(player)
     local screen_element = player.gui.screen
     local train_depot_gui = screen_element.add{type = 'frame', name = 'train_depot_settings_frame', caption = 'train depot settings'}
     train_depot_gui.style.size = {250,450}
-    --train_depot_gui.location = {x=507,y=1630}
+    train_depot_gui.location = {y=507,x=1630}
 
     ----------------------dropdown box for selecting station
     local depot_selector_drop_down = train_depot_gui.add{type = 'drop-down', 
@@ -426,8 +447,9 @@ function open_depot_gui(player)
 
     ----------------------checkbox to opt in or out of depots
 
-    --local depot_checkbox = train_depot_gui.add{type = "checkbox",name = "depot_checkbox",caption = "select if trains should go to a depot"}
-    --depot_checkbox.state = true
+    local depot_checkbox = train_depot_gui.add{type = "checkbox",name = "depot_checkbox",caption = "select if trains should go to a depot", 
+                                            state = true}
+    depot_checkbox.location = {x = 0,y = 50}
 
 end
 
@@ -495,6 +517,10 @@ script.on_nth_tick(1,function (event)
     on_tick(event)
 end)
 
+script.on_event(defines.events.on_gui_checked_state_changed, function (event)
+    oncheckboxchanged(event)
+end)
+
 script.on_event(defines.events.on_runtime_mod_setting_changed,function (event)
     global.depot_array = create_depot_array(settings.global["depot_names"].value)
 end)
@@ -534,6 +560,9 @@ end)
 
 script.on_event(defines.events.on_train_schedule_changed, function (event)
     if event.player_index ~= nil or event.mod_name ~= "train-depots" then
+        if global.train_table[event.train.id] == nil then 
+            create_train_table_element(event.train)
+        end
         if global.train_table[event.train.id].go_to_depot then
             if event.train.schedule ~= nil then 
                 local hasdepot
@@ -552,12 +581,14 @@ script.on_event(defines.events.on_train_schedule_changed, function (event)
 end)
 
 --[[
+-- commented out because its not yet ready for use
+
 --open the depot gui when you look at a train
 script.on_event(defines.events.on_gui_opened, function (event)
     if event.entity == nil then return end
     if event.entity.type == 'locomotive' then
         local player = game.players[event.player_index]
---        open_depot_gui(player)
+        open_depot_gui(player)
     end
 end)
 
