@@ -11,8 +11,8 @@ data:extend({
         type = "int-setting",
         name = "time_between_checks",
         setting_type = "runtime-global",
-        default_value = 20,
-        minimum_value = 10,
+        default_value = 360,
+        minimum_value = 60,
         localised_name = "time between checks",
         localised_description = "the time that's between checks for which trains can depart from a depot in ticks. can be extended if the mod causes the server to lag."
     }
