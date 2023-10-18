@@ -60,3 +60,15 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 - A bug which would crash the server if you changed the schedule of a train manually, line 563 - 566
+
+## [0.2.0] - 18-10-23
+
+### Added
+- GUI!
+- Enable, disable the train depots mod for that train and select the station it should go to
+
+### Changed
+- For some reason the mod had two functions to check for trains, merged these two
+
+### Fixed
+- In the on_train_state_changed callback the mod compared the value of global.train_table.selected_depot instead of global.train_table[event.train.id].selected_depot
