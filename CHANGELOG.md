@@ -72,3 +72,13 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 - In the on_train_state_changed callback the mod compared the value of global.train_table.selected_depot instead of global.train_table[event.train.id].selected_depot
+
+## [0.2.1] - 19-10-23
+
+### Added
+
+### Changed
+- Tweaked some values in settings.lua
+
+### Fixed
+- Bug that had the train table incomplete for some reason 

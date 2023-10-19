@@ -286,6 +286,7 @@ end
 
 function check_station_trains()
     for key,v in pairs(global.train_table) do
+        if v.train.schedule == nil then break end
         if v.train.schedule.records[v.train.schedule.current].station == v.selected_depot then
             if not v.enable_depot then
                 local depotplace
