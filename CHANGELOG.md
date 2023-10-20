@@ -82,3 +82,22 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 - Bug that had the train table incomplete for some reason 
+
+## [0.2.2] - 20-10-23
+
+### Added
+
+### Changed
+
+### Fixed
+- A bug that would occur on removing a train while the gui was opened which wouldnt remove the screen element
+
+## [0.2.3] - 20-10-23
+
+### Added
+
+### Changed
+
+### Fixed
+- Fixed a weird bug in which remove_stop_from_schedule would be trying to index a nil value
+

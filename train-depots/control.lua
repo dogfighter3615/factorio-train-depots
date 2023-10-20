@@ -134,6 +134,8 @@ end
 ---@param stopname string
 ---@return table
 local function remove_stop_from_schedule(schedule, place, stopname)
+    if schedule == nil then return {} end
+    if schedule.records[place] == nil or place == nil then return schedule end
     if stopname ~= schedule.records[place].station then 
         --game.print("trying to delete the wrong station, tried to delete "..schedule.record[place]) 
         return schedule 
@@ -286,52 +288,57 @@ end
 
 function check_station_trains()
     for key,v in pairs(global.train_table) do
-        if v.train.schedule == nil then break end
-        if v.train.schedule.records[v.train.schedule.current].station == v.selected_depot then
-            if not v.enable_depot then
-                local depotplace
-                for place,k in pairs(v.train.schedule.records) do
-                    if k.station == v.selected_depot then
-                        depotplace = place
-                        break
+        if v.train.valid == false then
+            global.train_table[key] = nil
+        
+        else
+            if v.train.schedule == nil then break end
+            if v.train.schedule.records[v.train.schedule.current].station == v.selected_depot then
+                if not v.enable_depot then
+                    local depotplace
+                    for place,k in pairs(v.train.schedule.records) do
+                        if k.station == v.selected_depot then
+                            depotplace = place
+                            break
+                        end
                     end
-                end
-                local table = remove_stop_from_schedule(v.train.schedule,depotplace,v.selected_depot)
-                replace_train_schedule(v.train,table)
-            end
-        end
-        if v.at_station and v.train.valid ~= false and v.enable_depot then
-            if v.train.schedule ~= nil then
-                local active_stops = 0
-                local depotplace
-                for place,k in pairs(v.train.schedule.records) do
-                    if global.trainstop_table[k.station] then
-                        active_stops = active_stops + 1
-                    end
-                    if k.station == v.selected_depot then
-                        depotplace = place
-                    end
-                end
-                if active_stops > 2 and v.at_depot then
                     local table = remove_stop_from_schedule(v.train.schedule,depotplace,v.selected_depot)
                     replace_train_schedule(v.train,table)
-                else if active_stops < 2 then
-                    local depot_stops = 0
-                    for _,k in pairs(v.train.schedule.records) do
+                end
+            end
+            if v.at_station and v.train.valid ~= false and v.enable_depot then
+                if v.train.schedule ~= nil then
+                    local active_stops = 0
+                    local depotplace
+                    for place,k in pairs(v.train.schedule.records) do
+                        if global.trainstop_table[k.station] then
+                            active_stops = active_stops + 1
+                        end
                         if k.station == v.selected_depot then
-                            depot_stops = depot_stops+1
+                            depotplace = place
                         end
                     end
-                    if depot_stops == 0 then
-                        if v.enable_depot then
-                            send_train_to_depot(v.train)
+                    if active_stops > 2 and v.at_depot then
+                        local table = remove_stop_from_schedule(v.train.schedule,depotplace,v.selected_depot)
+                        replace_train_schedule(v.train,table)
+                    else if active_stops < 2 then
+                        local depot_stops = 0
+                        for _,k in pairs(v.train.schedule.records) do
+                            if k.station == v.selected_depot then
+                                depot_stops = depot_stops+1
+                            end
+                        end
+                        if depot_stops == 0 then
+                            if v.enable_depot then
+                                send_train_to_depot(v.train)
+                            end
                         end
                     end
                 end
-            end
-            else if v.train.valid == false then
-                global.train_table[key] = nil
-            end
+                else if v.train.valid == false then
+                    global.train_table[key] = nil
+                end
+                end
             end
         end
     end
@@ -476,6 +483,12 @@ function open_depot_gui(player)
     local train = player.opened.train
     ----------------------main frame
     local screen_element = player.gui.relative
+    for _,child in pairs(screen_element.children) do
+        if child.name == 'train_depot_settings_frame' then
+            child.destroy()
+            break
+        end
+    end
     local train_depot_gui = screen_element.add{type = 'frame', name = 'train_depot_settings_frame', caption = 'train depot settings', anchor = {gui = defines.relative_gui_type.train_gui, position = defines.relative_gui_position.bottom}}
     train_depot_gui.style.size = {250,80}
 
@@ -486,17 +499,33 @@ function open_depot_gui(player)
     depot_selector_drop_down.items = global.depot_array
     local selectedindex = 1
     for index,name in pairs(global.depot_array) do
-        if name == global.train_table[train.id].selected_depot then 
-            selectedindex = index
+        if train ~= nil then
+            if global.train_table[train.id] == nil then 
+                if type(train) == "LuaTrain" then
+                    create_train_table_element(train)
+                end
+            else
+                if name == global.train_table[train.id].selected_depot then 
+                    selectedindex = index
+                end
+            end
         end
     end
     depot_selector_drop_down.selected_index = selectedindex
 
     ----------------------checkbox to opt in or out of depots
-    
-    local depot_checkbox = train_depot_gui.add{type = "checkbox",name = "depot_checkbox",caption = "enable depots", 
-                                            state = global.train_table[train.id].enable_depot , tooltip ="select if trains should go to a depot"}
-    depot_checkbox.location = {x = 0,y = 50}
+    if train ~= nil then
+        if global.train_table[train.id] == nil then 
+            if type(train) == "LuaTrain" then
+                create_train_table_element(train)
+            end
+        else
+            local depot_checkbox = train_depot_gui.add{type = "checkbox",name = "depot_checkbox",caption = "enable depots", 
+                                                    state = global.train_table[train.id].enable_depot , tooltip ="select if trains should go to a depot"}
+            depot_checkbox.location = {x = 0,y = 50}
+        end
+    end
+
 
 end
 
@@ -574,12 +603,14 @@ end)
 
 script.on_event(defines.events.on_built_entity, function (event)
     if event.created_entity.type == 'locomotive' then 
+        --game.print("hi"..event.created_entity.train.id)
         create_train_table_element(event.created_entity.train)
     end
 end)
 
 script.on_event(defines.events.on_robot_built_entity,function (event)
     if event.created_entity.type == 'locomotive' then 
+        --game.print("hi"..event.created_entity.train.id)
         create_train_table_element(event.created_entity.train)
     end
 end)
@@ -649,7 +680,11 @@ script.on_event(defines.events.on_gui_closed,function (event)
             if v.name == "train_depot_settings_frame"then
                 for _,k in pairs(v.children) do
                     if k.name == "depot_selector_drop_down" then
-                        global.train_table[event.entity.train.id].selected_depot = k.items[k.selected_index]
+                        if global.train_table[event.entity.train.id] == nil then
+                            create_train_table_element(event.entity.train)
+                        else
+                            global.train_table[event.entity.train.id].selected_depot = k.items[k.selected_index]
+                        end
                     end 
                 end
             end
