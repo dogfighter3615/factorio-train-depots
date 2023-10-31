@@ -101,3 +101,10 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 - Fixed a weird bug in which remove_stop_from_schedule would be trying to index a nil value
 
+## [0.2.4] - UNRELEASED
+
+### Added
+
+### Changed
+- Major refactoring for better overview of the code
+- Rewritten the code to remove the get_train_by_id function as Wube added this functionality in the base mod
