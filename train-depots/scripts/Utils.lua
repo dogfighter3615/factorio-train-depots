@@ -91,62 +91,6 @@ function create_reverse_key_array (table)
     return reversedlist
 end
 
----replace the current schedule of a train with a new one
----@param train LuaTrain
----@param schedule table
-function replace_train_schedule(train, schedule)
-    if schedule == nil then return end
-    train.schedule = schedule
-    global.train_table[train.id].train = train
-end
-
----comment
----@param schedule table
----@param added_stop table
----@param place int
-function add_stop_in_schedule(schedule,added_stop,place) 
-    local reversedkeylist = create_reverse_key_array(schedule.records)
-    for _,k in pairs(reversedkeylist) do
-        if (k >= place) then
-            schedule.records[k+1] = schedule.records[k]
-        end
-    end
-    schedule.records[place+1] = added_stop[place+1]
-    return schedule
-end
-
-
----remove the stop at the given place from the schedule
----@param schedule table
----@param place int
----@param stopname string
----@return table
-function remove_stop_from_schedule(schedule, place, stopname)
-    if schedule == nil then return {} end
-    if schedule.records[place] == nil or place == nil then return schedule end
-    if stopname ~= schedule.records[place].station then 
-        --game.print("trying to delete the wrong station, tried to delete "..schedule.record[place]) 
-        return schedule 
-    end
-    for key, v in pairs(schedule.records) do
-        if (key >= place) then
-            schedule.records[key] = schedule.records[key+1]
-        end
-    end
-    if schedule.current > #schedule.records then
-        local i = 1
-        for _,station in pairs(schedule.records) do
-            active = global.trainstop_table[station.station]
-            if active == true then
-                schedule.current = i
-                return schedule
-            else
-                i = i+1
-            end
-        end
-    end
-    return schedule
-end
 
 function OnInit()
     register_commands()
@@ -157,4 +101,46 @@ function OnInit()
     create_depot_array(settings.global["depot_names"].value)
     create_train_table()
     print_trains_entering_station = false
+end
+
+---creates the array of possible depot station names
+function create_depot_array(setting)
+    global.depot_array = {}
+    local depot_name = ""
+    for i = 1 , #setting, 1 do
+        local sub = string.sub(setting, i, i)
+        if sub ~= "," then
+            depot_name = depot_name .. sub
+        else 
+            global.depot_array[#global.depot_array+1] = depot_name
+            depot_name = ""
+        end
+    end
+    global.depot_array[#global.depot_array+1] = depot_name
+    return global.depot_array
+end
+
+
+function on_tick(event)
+    if PostLoad then
+        PostLoad = false
+        game.print("loaded")
+        
+        if global.depot_array == nil then
+            create_depot_array(settings.global["depot_names"].value)
+        end
+        if global.train_table == nil then 
+            create_train_table()
+        end
+        if global.trainstop_table == nil then 
+            create_stop_list()
+        end
+    end
+end
+
+---do whatever needs to be done when loading a save
+-- remember you dont have global table or game class idiot
+function OnLoad()
+    --PostLoad = true   
+    register_commands()
 end

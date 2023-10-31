@@ -1,5 +1,6 @@
 --control.lua1
 
+require "TrainHandler"
 require "scripts/TrainTable.lua"
 require "scripts/EventHandlers.lua"
 require "scripts.Commands"
@@ -35,7 +36,7 @@ function check_trains ()
                     end
                 end
                 if (activelist > 1) then
-                    local schedule = Utils.remove_stop_from_schedule(train.schedule,train.schedule.current,global.train_table[id].selected_depot)
+                    local schedule = remove_stop_from_schedule(train.schedule,train.schedule.current,global.train_table[id].selected_depot)
                     local train = game.get_train_by_id(id)
                     if train == nil then return end
                     replace_train_schedule(
@@ -60,6 +61,7 @@ function create_stop_list()
         local controlbehavior = v.get_control_behavior()
         if controlbehavior then
             if not global.trainstop_table[v.backer_name] then
+---@diagnostic disable-next-line: undefined-field
                 global.trainstop_table[v.backer_name] = not controlbehavior.disabled
             end
         else
@@ -83,16 +85,7 @@ function create_train_list()
     end
 end
 
----add the depot to the train schedule at the correct spot
----@param train LuaTrain
-function send_train_to_depot(train)
-    if global.train_table[train.id].go_to_depot == false then
-        local current = train.schedule.current
-        schedule = Utils.add_stop_in_schedule(train.schedule,Utils.create_schedule_table(current,train.id),current)
-        replace_train_schedule(train,schedule)
-        global.train_table[train.id].go_to_depot = true
-    end
-end
+
 
 ---updates the train list for when a train enters a station
 ---@param event EventData.on_train_changed_state
@@ -150,8 +143,8 @@ function check_station_trains()
                             break
                         end
                     end
-                    local table = Utils.remove_stop_from_schedule(train.schedule,depotplace,v.selected_depot)
-                    Utils.replace_train_schedule(train,table)
+                    local table = remove_stop_from_schedule(train.schedule,depotplace,v.selected_depot)
+                    replace_train_schedule(train,table)
                 end
             end
             if v.at_station and train.valid ~= false and v.enable_depot then
@@ -167,7 +160,7 @@ function check_station_trains()
                         end
                     end
                     if active_stops > 2 and v.at_depot then
-                        local table = Utils.remove_stop_from_schedule(train.schedule,depotplace,v.selected_depot)
+                        local table = remove_stop_from_schedule(train.schedule,depotplace,v.selected_depot)
                         replace_train_schedule(train,table)
                     else if active_stops < 2 then
                         local depot_stops = 0
@@ -187,55 +180,4 @@ function check_station_trains()
             end
         end
     end
-end
-
----creates the array of possible depot station names
-function create_depot_array(setting)
-    global.depot_array = {}
-    local depot_name = ""
-    for i = 1 , #setting, 1 do
-        local sub = string.sub(setting, i, i)
-        if sub ~= "," then
-            depot_name = depot_name .. sub
-        else 
-            global.depot_array[#global.depot_array+1] = depot_name
-            depot_name = ""
-        end
-    end
-    global.depot_array[#global.depot_array+1] = depot_name
-    return global.depot_array
-end
-
-
-function on_tick(event)
-    if PostLoad then
-        PostLoad = false
-        game.print("loaded")
-        
-        if global.depot_array == nil then
-            create_depot_array(settings.global["depot_names"].value)
-        end
-        if global.train_table == nil then 
-            create_train_table()
-        end
-        if global.trainstop_table == nil then 
-            create_stop_list()
-        end
-    end
-end
-
----do whatever needs to be done when loading a save
--- remember you dont have global table or game class idiot
-function OnLoad()
-    --PostLoad = true   
-    register_commands()
-end
-
----update the train_table.train variable if something changed
----@param train LuaTrain
-function update_train_table_train(train)
-    if global.train_table[train.id]==nil then
-        create_train_table_element(train)
-    end
-    global.train_table[train.id].train = train
 end
