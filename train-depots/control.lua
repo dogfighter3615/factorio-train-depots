@@ -109,7 +109,11 @@ end
 function replace_train_schedule(train, schedule)
     if schedule == nil then return end
     train.schedule = schedule
-    global.train_table[train.id].train = train
+    if global.train_table[train.id] == nil then 
+        create_train_table_element(train)
+    else
+        global.train_table[train.id].train = train
+    end
 end
 
 ---comment
