@@ -2,6 +2,7 @@
 
 require "TrainHandler"
 require "scripts/TrainTable.lua"
+require "scripts.TrainstopTable"
 require "scripts/EventHandlers.lua"
 require "scripts.Commands"
 require "scripts/Gui.lua"

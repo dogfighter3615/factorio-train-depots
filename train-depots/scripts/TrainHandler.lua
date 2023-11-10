@@ -6,7 +6,6 @@
 function replace_train_schedule(train, schedule)
     if schedule == nil then return end
     train.schedule = schedule
-    global.train_table[train.id].train = train
 end
 
 ---adds a stop to a schedule in the specified spot
@@ -26,7 +25,7 @@ end
 
 
 ---remove the stop at the given place from the schedule
----@param schedule table
+---@param schedule TrainSchedule
 ---@param place int
 ---@param stopname string
 ---@return table
@@ -75,4 +74,49 @@ function update_train_table_train(train)
         create_train_table_element(train)
     end
     global.train_table[train.id].train = train
+end
+
+---checks the amount of active stations a train has
+---@param train LuaTrain
+---@return int | nil
+function check_stations(train)
+    local active_station = 0
+    if train.schedule.records == nil then return end
+    for _,v in pairs(train.schedule.records) do
+        if global.trainstop_table[v.station] then
+            active_station = active_station + 1
+        end
+    end
+    return active_station
+end 
+
+---checks for any active depot stations in the schedule and returns their places.
+---{station place : station name}
+---@param train LuaTrain
+---@return table | nil
+function find_depot_stations(train)
+    local depot_table
+    if train.schedule.records == nil then return end
+    for k,v in pairs(train.schedule.records) do
+        if v.station == global.train_table[train.id].selected_depot then
+            depot_table[k] = v.station
+        end
+    end
+    return depot_table
+end
+
+---removes all depot stations in the trains schedule
+---@param train LuaTrain
+function remove_depots_from_trains(train)
+    depots = find_depot_stations(train)
+    if depots == nil then return end
+    local schedule = train.schedule
+    if schedule == nil then return end
+    for id,name in pairs(depots) do
+        local new_schedule = remove_stop_from_schedule(schedule,id,name)
+        if not new_schedule == nil then 
+            schedule = new_schedule
+        end
+    end
+    replace_train_schedule(train,schedule)
 end

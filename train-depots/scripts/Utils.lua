@@ -144,3 +144,34 @@ function OnLoad()
     --PostLoad = true   
     register_commands()
 end
+
+---find the entity on a given surface or the entire game
+--[[{
+    entityname = name of the entity youre looking for (string), 
+    enttype = type of the entity to look for (string), 
+    surface = surface to look on, if nil look on all surfaces
+    }
+]]
+---@param arguments table 
+---@return LuaEntity | nil
+function find_entites(arguments)
+    local entityname = arguments.entityname
+    local enttype = arguments.type
+    local surface = arguments.surface
+    if entityname == nil or enttype == nil then return nil end
+    if type(entityname) ~= string or type(enttype) ~= string then return nil end
+    if surface then
+        local entities = surface.find_entities_filtered{type=enttype}
+        if entities[entityname] ~= nil then
+            return entities[entityname]
+        end
+    else
+        for _,sur in pairs(game.surfaces) do
+            local entities = sur.find_entities_filtered{type=enttype}
+            if entities[entityname] ~= nil then
+                return entities[entityname]
+            end
+        end
+    end
+    return nil
+end

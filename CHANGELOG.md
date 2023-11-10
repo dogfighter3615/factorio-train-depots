@@ -101,7 +101,17 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 - Fixed a weird bug in which remove_stop_from_schedule would be trying to index a nil value
 
-## [0.2.4] - UNRELEASED
+## [0.2.4] - 31-10-23
+
+### Added
+- Extra check for trains to not receive depot station when not needed
+
+### Changed
+
+### Fixed
+- A bug that crashed the game while running the /remove_depots_from_trains command
+
+## [0.3.0] - UNRELEASED
 
 ### Added
 
