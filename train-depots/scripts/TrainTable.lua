@@ -29,3 +29,19 @@ function remake_train_table(event)
     create_train_table()
     game.players[event.player_index].print("remade train table")
 end
+
+---remove the train with the given id from the traintable
+---@param train_id int
+function remove_from_traintable(train_id)
+    global.train_table[train_id] = nil
+end
+
+---updates the train table after an event that places/removes a train was fired
+---@param train LuaTrain
+function update_train_table(train)
+    if global.train_table[train] == nil then 
+        create_train_table_element(train)
+    else
+        remove_from_traintable(train.id)
+    end
+end

@@ -27,7 +27,7 @@ function replace_name_trainstop_table(oldname, newname)
 end
 
 ---make a new trainstop Table, will delete the old one and make a new one, 
----should only be used on initialising or handling, rest should be handled by adding and removing from the table
+---should only be used on initialising or debugging, rest should be handled by adding and removing from the table
 function make_TrainstopTable () 
     global.trainstop_table = {}
     for _,sur in pairs(game.surfaces) do
@@ -42,4 +42,14 @@ end
 ---@param trainstop string
 function remove_trainstop_from_trainstoptable(trainstop)
     global.trainstop_table[trainstop] = nil
+end
+
+---update an element of the trainstop_table with the given name
+---@param trainstop string
+function update_trainstoptable_element(trainstop)
+    local stop = game.get_train_stops{name = trainstop}
+    for _,v in pairs(stop) do
+        ---@diagnostic disable-next-line: undefined-field
+        global.trainstop_table[v.backer_name] = not v.get_control_behavior().disabled
+    end
 end

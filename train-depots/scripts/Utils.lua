@@ -175,3 +175,11 @@ function find_entites(arguments)
     end
     return nil
 end
+
+function place_remove_train_function(event)
+    if event.entity ~= nil then
+        if event.entity.type == "locomotive" then
+            update_train_table(event.entity.train)
+        end
+    end
+end

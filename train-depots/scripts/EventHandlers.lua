@@ -60,38 +60,23 @@ script.on_event(defines.events.on_runtime_mod_setting_changed,function (event)
 end)
 
 script.on_event(defines.events.on_built_entity, function (event)
-    if event.created_entity.type == 'locomotive' then 
-        --game.print("hi"..event.created_entity.train.id)
-        create_train_table_element(event.created_entity.train)
-    end
+    place_remove_train_function(event)
 end)
 
 script.on_event(defines.events.on_robot_built_entity,function (event)
-    if event.created_entity.type == 'locomotive' then 
-        --game.print("hi"..event.created_entity.train.id)
-        create_train_table_element(event.created_entity.train)
-    end
+    place_remove_train_function(event)
 end)
 
 script.on_event(defines.events.on_entity_died, function (event)
-    if event.entity.type == 'locomotive' then
-        --game.print("removed train from table")
-        global.train_table[event.entity.train.id] = nil
-    end
+    place_remove_train_function(event)
 end)
 
 script.on_event(defines.events.on_player_mined_entity,function (event)
-    if event.entity.type == 'locomotive'then
-        --game.print("removed train from table")
-        global.train_table[event.entity.train.id] = nil
-    end
+    place_remove_train_function(event)
 end)
 
 script.on_event(defines.events.on_robot_mined_entity,function (event)
-    if event.entity.type == 'locomotive'then
-        --game.print("removed train from table")
-        global.train_table[event.entity.train.id] = nil
-    end
+    place_remove_train_function(event)
 end)
 
 script.on_event(defines.events.on_train_schedule_changed, function (event)
@@ -115,9 +100,6 @@ script.on_event(defines.events.on_train_schedule_changed, function (event)
     end
     update_train_table_train(event.train)
 end)
-
---[
--- commented out because its not yet ready for use
 
 --open the depot gui when you look at a train
 script.on_event(defines.events.on_gui_opened, function (event)
